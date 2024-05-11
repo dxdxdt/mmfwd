@@ -1,0 +1,11 @@
+mmfwd:
+  instances:
+    - mid: # modem identity
+        n-own: '.*' # own number, regex. Use all modems
+      fwd:
+        mailto:
+          - jd@example.com
+        cmd:
+          - /usr/bin/mailx
+          - jd@example.com
+          - -s Text from {sender}
