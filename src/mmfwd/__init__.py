@@ -29,14 +29,30 @@ class Forward:
 		self.mailto: list[str] = conf.get("mailto", [])
 		self.cmd: list[str] = conf.get("cmd", [])
 
-	def post (self, doc):
+	def post_sms (self, doc):
 		cmd = list[str]()
 		for arg in self.cmd:
 			cmd.append(arg.format(
-				sender = doc["sms"]["from"],
+				type = "sms",
+				origin = doc["sms"]["from"],
 				to = doc["sms"]["to"],
 				ts_req = doc["sms"]["ts-req"],
 				ts_del = doc["sms"]["ts-del"],
+			))
+
+		with subprocess.Popen(cmd, stdin = subprocess.PIPE) as p:
+			p.stdin.write(("--" + os.linesep).encode())
+			yaml.dump(doc, p.stdin, encoding = 'utf-8', allow_unicode = True)
+			p.stdin.close()
+
+	def post_call (self, doc):
+		cmd = list[str]()
+		for arg in self.cmd:
+			cmd.append(arg.format(
+				type = "call",
+				origin = doc["call"]["from"],
+				to = doc["call"]["to"],
+				multiparty = doc["call"]["multiparty"],
 			))
 
 		with subprocess.Popen(cmd, stdin = subprocess.PIPE) as p:
@@ -201,11 +217,6 @@ class Application:
 
 	def on_message_added (self, messaging, path, received, ud):
 		messaging.list(None, self.on_messages, ud)
-		print('''[mmfwd] on_message_added: {a} {b} {c}'''.format(
-			a = messaging,
-			b = path,
-			c = received,
-		))
 
 	def on_messages (self, messaging, task, ud):
 		for m in messaging.list_finish(task):
@@ -226,7 +237,7 @@ class Application:
 
 			print("--")
 			yaml.dump(doc, sys.stdout, allow_unicode = True)
-			ud.instance.fwd.post(doc)
+			ud.instance.fwd.post_sms(doc)
 
 			messaging.delete(path, None, self.on_message_delete)
 
@@ -235,6 +246,19 @@ class Application:
 
 	def on_call_added (self, voice, path, ud):
 		voice.list_calls(None, self.on_calls, ud)
+
+	def on_incoming_call (self, call, ud):
+		doc = {
+			"call": {
+				"from": call.get_number(),
+				"to": ud.own_numbers,
+				"multiparty": call.get_multiparty(),
+			}
+		}
+
+		print("--")
+		yaml.dump(doc, sys.stdout, allow_unicode = True)
+		ud.instance.fwd.post_call(doc)
 
 	def on_calls (self, voice, task, ud = None):
 		for c in voice.list_calls_finish(task):
@@ -246,6 +270,8 @@ class Application:
 			if state == ModemManager.CallState.ACTIVE:
 				c.hangup(None, self.on_call_hangup, nud)
 			elif state == ModemManager.CallState.RINGING_IN:
+				self.on_incoming_call(c, ud)
+
 				if True:
 					# FIXME
 					# just hang up for now

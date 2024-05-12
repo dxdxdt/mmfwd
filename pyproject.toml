@@ -10,8 +10,8 @@ authors = [
 ]
 description = "Forward calls and texts using ModemManager framework"
 readme = "README.md"
-requires-python = ">= 3.11" # TODO
-dependencies = [ "pyjson5", "PyYAML", "PyGObject" ]
+requires-python = ">= 3.6"
+dependencies = [ "PyYAML", "PyGObject" ]
 
 classifiers = [
     "Programming Language :: Python :: 3",

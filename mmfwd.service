@@ -1,0 +1,13 @@
+[Unit]
+Description=Forward calls and texts using ModemManager
+Requires=ModemManager.service
+After=postfix.service ModemManager.service network-online.target
+
+[Service]
+User=mmfwd
+Group=mmfwd
+Environment=MMFWD_CONFIG=/etc/mmfwd/mmfwd.yaml
+ExecStart=/usr/bin/env python3 -m mmfwd
+
+[Install]
+WantedBy=multi-user.target

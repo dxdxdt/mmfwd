@@ -11,11 +11,12 @@ def handle_signal (loop):
 
 # load config
 try:
-    from yaml import CLoader as Loader, CDumper as Dumper
+	from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
-    from yaml import Loader, Dumper
+	from yaml import Loader, Dumper
 
-conf = yaml.load(open(CONFIG_FILENAME), Loader)["mmfwd"]
+conf = yaml.load(
+	open(os.getenv("MMFWD_CONFIG") or CONFIG_FILENAME), Loader)["mmfwd"]
 # instantiate the singleton objects
 app = Application(conf)
 main_loop = GLib.MainLoop()
