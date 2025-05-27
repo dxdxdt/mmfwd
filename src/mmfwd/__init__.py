@@ -41,7 +41,7 @@ class Forward:
 			))
 
 		with subprocess.Popen(cmd, stdin = subprocess.PIPE) as p:
-			p.stdin.write(("--" + os.linesep).encode())
+			p.stdin.write(("---" + os.linesep).encode())
 			yaml.dump(doc, p.stdin, encoding = 'utf-8', allow_unicode = True)
 			p.stdin.close()
 
@@ -56,7 +56,7 @@ class Forward:
 			))
 
 		with subprocess.Popen(cmd, stdin = subprocess.PIPE) as p:
-			p.stdin.write(("--" + os.linesep).encode())
+			p.stdin.write(("---" + os.linesep).encode())
 			yaml.dump(doc, p.stdin, encoding = 'utf-8', allow_unicode = True)
 			p.stdin.close()
 
@@ -235,7 +235,7 @@ class Application:
 				},
 			}
 
-			print("--")
+			print("---")
 			yaml.dump(doc, sys.stdout, allow_unicode = True)
 			ud.instance.fwd.post_sms(doc)
 
@@ -256,7 +256,7 @@ class Application:
 			}
 		}
 
-		print("--")
+		print("---")
 		yaml.dump(doc, sys.stdout, allow_unicode = True)
 		ud.instance.fwd.post_call(doc)
 
