@@ -12,7 +12,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstring>
-#include <termio.h>
+#include <termios.h>
 
 // mmfwd call answering machine
 
