@@ -1,14 +1,15 @@
 from copy import copy
+import datetime
 import os
 import re
 import subprocess
 import sys
-import threading
 from typing import Any
 import gi
 import yaml
 gi.require_version('ModemManager', '1.0')
-from gi.repository import Gio, ModemManager
+gi.require_version('GLib', '2.0')
+from gi.repository import GLib, Gio, ModemManager
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -65,6 +66,11 @@ class Instance:
 		self.mobj: str = None
 		self.mid = ModemIdentity(conf.get("mid"))
 		self.fwd = Forward(conf.get("fwd"))
+		self.callam = conf.get("call-am", {
+			'enabled': False
+		})
+		self.callam_proc = None
+		self.callam_timer = None
 
 	def match (self, m) -> bool:
 		if self.mid.n_own:
@@ -120,6 +126,16 @@ class Application:
 		ud.messaging = messaging
 		ud.voice = voice
 		ud.own_numbers = modem.get_property('own-numbers')
+		ud.device = modem.get_property('device')
+		ud.audio_port = None
+
+		if instance.callam['enabled']:
+			for p in modem.get_property('ports'):
+				if p[1] == ModemManager.ModemPortType.AUDIO:
+					ud.audio_port = p[0]
+					break
+
+			assert ud.audio_port is not None, "Call-am enabled, but the modem has no audio port"
 
 		modem.connect('state-changed', self.on_modem_state_updated, ud)
 		messaging.connect('added', self.on_message_added, ud)
@@ -127,7 +143,7 @@ class Application:
 
 		# fire request to sync
 		messaging.list(None, self.on_messages, ud)
-		voice.list_calls(None, self.on_calls, ud)
+		voice.list_calls(None, self.on_calls_sync, ud)
 
 	def set_available(self):
 		"""
@@ -245,7 +261,8 @@ class Application:
 		messaging.delete_finish(task)
 
 	def on_call_added (self, voice, path, ud):
-		voice.list_calls(None, self.on_calls, ud)
+		print("on_call_added()") # FIXME
+		voice.list_calls(None, self.on_calls_added, ud)
 
 	def on_incoming_call (self, call, ud):
 		doc = {
@@ -260,40 +277,113 @@ class Application:
 		yaml.dump(doc, sys.stdout, allow_unicode = True)
 		ud.instance.fwd.post_call(doc)
 
-	def on_calls (self, voice, task, ud = None):
+	def on_calls_sync (self, voice, task, ud):
+		print("on_calls_sync()") # FIXME
 		for c in voice.list_calls_finish(task):
 			state = c.get_state()
 			path = c.get_path()
+
+			if (state == ModemManager.CallState.ACTIVE or
+					state == ModemManager.CallState.RINGING_IN):
+				c.hangup(None, self.on_call_hangup, ud)
+			elif state == ModemManager.CallState.TERMINATED:
+				voice.delete_call(path, None, self.on_call_delete, None)
+
+	def on_calls_cleanup (self, voice, task, ud):
+		print("on_calls_cleanup()") # FIXME
+		for c in voice.list_calls_finish(task):
+			if c.get_state() == ModemManager.CallState.TERMINATED:
+				voice.delete_call(c.get_path(), None, self.on_call_delete, None)
+
+	def on_calls_added (self, voice, task, ud):
+		print("on_calls_added()") # FIXME
+
+		hasCall = False
+		for c in voice.list_calls_finish(task):
+			state = c.get_state()
 			nud = copy(ud)
 			nud.call = c
 
-			if state == ModemManager.CallState.ACTIVE:
+			if state != ModemManager.CallState.RINGING_IN:
+				continue
+
+			if hasCall:
 				c.hangup(None, self.on_call_hangup, nud)
-			elif state == ModemManager.CallState.RINGING_IN:
+			else:
+				hasCall = True
 				self.on_incoming_call(c, ud)
 
-				if True:
-					# FIXME
-					# just hang up for now
-					c.hangup(None, self.on_call_hangup, nud)
-				else:
+				if ud.instance.callam['enabled']:
 					c.accept(None, self.on_call_accept, nud)
-			elif state == ModemManager.CallState.TERMINATED:
-				voice.delete_call(path, None, self.on_call_delete, nud)
+				else:
+					c.hangup(None, self.on_call_hangup, nud)
 
 	def on_call_change (self, call, old, new, reason, ud):
-		ud.voice.list_calls(None, self.on_calls, ud)
+		print("on_call_change()") # FIXME
+		if new == ModemManager.CallState.TERMINATED:
+			ud.voice.list_calls(None, self.on_calls_cleanup, ud)
+		else:
+			call.hangup(None, self.on_call_hangup, ud)
+
+		if ud.instance.callam_proc is not None:
+			ud.instance.callam_proc.terminate()
+			ud.instance.callam_proc.wait()
+			ud.instance.callam_proc = None
+
+			# reset the modem
+			# fucking hate this cheap BS modem
+			path = "%s/bConfigurationValue" % ud.device
+			os.system('''echo -1 > ''' + path)
+			os.system('''echo 1 > ''' + path)
+
+		if ud.instance.callam_timer is not None:
+			GLib.source_remove(ud.instance.callam_timer)
+			ud.instance.callam_timer = None
 
 	def on_call_hangup (self, call, task, ud):
+		print("on_call_hangup()") # FIXME
 		call.hangup_finish(task)
-		ud.voice.list_calls(None, self.on_calls, ud)
+		ud.voice.list_calls(None, self.on_calls_cleanup, ud)
 
 	def on_call_delete (self, voice, task, ud):
-		voice.delete_call_finish(task)
+		try:
+			voice.delete_call_finish(task)
+		except: pass
 
 	def on_call_accept (self, call, task, ud):
-		call.accept_finish(task)
+		try:
+			call.accept_finish(task)
+		except gi.repository.GLib.GError as e:
+			sys.stderr.write("on_call_accept(): " + str(e))
+			return
+		print("on_call_accept()") # FIXME
 		call.connect('state-changed', self.on_call_change, ud)
 
 		# The custom ModemManager will send AT+CPCMREG.
-		# TODO: play the voice message
+		# mmfwd-callam process will set up the serial, play the hello message
+		# and record
+		try:
+			now = datetime.datetime.now(datetime.UTC)
+
+			n_from = call.get_number() or ""
+
+			dir = "rec/%02d-%02d" % (now.year, now.month)
+			filename = now.isoformat(timespec = 'milliseconds') + '_' + n_from
+			path = dir + '/' + filename
+
+			os.makedirs(dir, exist_ok = True)
+
+			exec = [ ud.instance.callam['exec'], "/dev/" + ud.audio_port, path ]
+			ud.instance.callam_proc = subprocess.Popen(exec)
+			# 5 minutes timeout
+			ud.instance.callam_timer = GLib.timeout_add_seconds(
+				60 * 4,
+				self.on_call_timeout,
+				ud)
+		except Exception as e:
+			raise e
+
+	def on_call_timeout (self, ud):
+		ud.call.hangup(None, self.on_call_hangup, ud)
+		ud.instance.callam_timer = None
+		return False

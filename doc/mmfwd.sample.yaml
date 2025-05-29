@@ -9,3 +9,6 @@ mmfwd:
           - /usr/bin/mailx
           - jd@example.com
           - -s Text from {sender}
+      call-am:
+        enabled: false
+        exec: "/usr/local/mmfwd-callam"
