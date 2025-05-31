@@ -16,7 +16,9 @@ somewhere safe.
 ![alt text](doc/img/mmfwd-email-sms.webp)
 
 ## Call answering machine (mmfwd-callam)
-https://github.com/dxdxdt/mmfwd/raw/refs/heads/calls/doc/img/sim7600-rickroll.post1.720p.mp4
+https://github.com/user-attachments/assets/b4782fbf-cf7d-4dba-8e81-26a8a6e084a0
+
+<video controls src="doc/img/sim7600-rickroll.post1.720p.mp4" title="sim7600-rickroll.post1.720p.mp4"></video>
 
 Usage:
 
