@@ -33,12 +33,14 @@ ffmpeg -i FILE -vn -ar 16000 -ac 1 -f s16le OUTFILE.pcm
 ```
 
 or use Audacity:
+
 - Go to `File` - `Export Audio`
   - Format: "Other uncompressed files"
   - Channel: Mono
   - Sample Rate: 16000 Hz
   - Header: RAW (header-less)
   - Encoding: Signed 16-bit PCM
+
 Audacity overrides the extension to .raw. Change it to .pcm.
 
 ![alt text](doc/img/image.png)
