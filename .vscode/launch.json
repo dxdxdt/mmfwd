@@ -5,11 +5,22 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Python Debugger: Module",
+			"name": "Python Debugger: Module mmfwd",
 			"type": "debugpy",
 			"request": "launch",
 			"module": "mmfwd",
 			"cwd": "${workspaceFolder}/src",
+		},
+		{
+			"name": "Python Debugger: Module mmfwd.recsync",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "mmfwd.recsync",
+			"cwd": "${workspaceFolder}/src",
+			"env": {
+				// your s3 prefix here, with or without trailing slash
+				"MMFWD_RECSYNC_S3_UPLOAD_PREFIX": "s3://.../mmfwd/rec/"
+			}
 		}
 	]
 }
