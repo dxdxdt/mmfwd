@@ -12,3 +12,11 @@ mmfwd:
       call-am:
         enabled: false
         exec: "/usr/local/mmfwd-callam"
+        playback: 0
+        ringtone-exec:
+          - ffplay
+          - -loglevel
+          - error
+          - -autoexit
+          - -nodisp
+          - ringtone.ogg

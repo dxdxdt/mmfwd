@@ -95,6 +95,50 @@ To encode the recorded raw audio files:
 ffmpeg -ar 16000 -ac 1 -f s16le -i PCM_FILE -c:a libopus OUTFILE.ogg
 ```
 
+## Local playback
+Config to enable. `1` for incoming audio only, `2` for outgoing audio only, `3`
+for both. `0` to disable:
+
+```yaml
+mmfwd:
+  instances:
+    -
+...
+      call-am:
+...
+        playback: 1
+...
+```
+
+### Enable ringtone (optional)
+Make a simple ringtone:
+
+```sh
+# short bursts of alternating 250 and 500 Hz sine waves
+truncate -s 0 bell.pcm
+for (( i = 0; i < 6; i += 1 ))
+do
+  ffmpeg -loglevel error -f lavfi -i "sine=frequency=250:duration=0.1" -f s16le -ar 16000 -ac 1 - >> bell.pcm
+  ffmpeg -loglevel error -f lavfi -i "sine=frequency=500:duration=0.2" -f s16le -ar 16000 -ac 1 - >> bell.pcm
+done
+
+# encode it to opus
+ffmpeg -loglevel error -f s16le -ar 16000 -ac 1 -i bell.pcm -c:a libopus ringtone.ogg
+```
+
+Config to enable ringtone:
+
+```yaml
+        ringtone-exec:
+          - ffplay
+          - -loglevel
+          - error
+          - -autoexit
+          - -nodisp
+          - ringtone.ogg
+...
+```
+
 ## MM Patches
 - https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/merge_requests/1293
 - https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/issues/996

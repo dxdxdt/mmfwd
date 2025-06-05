@@ -70,6 +70,7 @@ class Instance:
 			'enabled': False
 		})
 		self.callam_proc = None
+		self.callam_ringtone_proc = None
 		self.callam_timer = None
 
 	def match (self, m) -> bool:
@@ -325,6 +326,11 @@ class Application:
 		else:
 			call.hangup(None, self.on_call_hangup, ud)
 
+		if ud.instance.callam_ringtone_proc is not None:
+			ud.instance.callam_ringtone_proc.terminate()
+			ud.instance.callam_ringtone_proc.wait()
+			ud.instance.callam_ringtone_proc = None
+
 		if ud.instance.callam_proc is not None:
 			ud.instance.callam_proc.terminate()
 			ud.instance.callam_proc.wait()
@@ -359,6 +365,13 @@ class Application:
 		print("on_call_accept()") # FIXME
 		call.connect('state-changed', self.on_call_change, ud)
 
+		if ud.instance.callam.get('ringtone-exec'):
+			try:
+				ud.instance.callam_ringtone_proc = subprocess.Popen(
+					ud.instance.callam['ringtone-exec'])
+			except Exception as e:
+				sys.stderr.write(e + os.linesep)
+
 		# The custom ModemManager will send AT+CPCMREG.
 		# mmfwd-callam process will set up the serial, play the hello message
 		# and record
@@ -373,8 +386,11 @@ class Application:
 
 			os.makedirs(dir, exist_ok = True)
 
+			env = os.environ.copy()
+			env['MMFWD_CALLAM_PLAYBACK'] = str(ud.instance.callam['playback'])
+
 			exec = [ ud.instance.callam['exec'], "/dev/" + ud.audio_port, path ]
-			ud.instance.callam_proc = subprocess.Popen(exec)
+			ud.instance.callam_proc = subprocess.Popen(exec, env = env)
 			# 5 minutes timeout
 			ud.instance.callam_timer = GLib.timeout_add_seconds(
 				60 * 4,
