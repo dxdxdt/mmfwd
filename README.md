@@ -111,6 +111,10 @@ mmfwd:
 ```
 
 ### Enable ringtone (optional)
+https://github.com/user-attachments/assets/209f5bdd-2e63-4373-81d2-5a47c403db82
+
+<video controls src="doc/img/sim7600-playback.720p.30fps.mp4" title="sim7600-playback.720p.30fps.mp4"></video>
+
 Make a simple ringtone:
 
 ```sh
