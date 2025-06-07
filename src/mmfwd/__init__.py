@@ -2,6 +2,7 @@ from copy import copy
 import datetime
 import os
 import re
+import signal
 import subprocess
 import sys
 from typing import Any
@@ -327,12 +328,12 @@ class Application:
 			call.hangup(None, self.on_call_hangup, ud)
 
 		if ud.instance.callam_ringtone_proc is not None:
-			ud.instance.callam_ringtone_proc.terminate()
+			os.killpg(ud.instance.callam_ringtone_proc.pid, signal.SIGKILL)
 			ud.instance.callam_ringtone_proc.wait()
 			ud.instance.callam_ringtone_proc = None
 
 		if ud.instance.callam_proc is not None:
-			ud.instance.callam_proc.terminate()
+			os.killpg(ud.instance.callam_proc.pid, signal.SIGKILL)
 			ud.instance.callam_proc.wait()
 			ud.instance.callam_proc = None
 
@@ -368,7 +369,8 @@ class Application:
 		if ud.instance.callam.get('ringtone-exec'):
 			try:
 				ud.instance.callam_ringtone_proc = subprocess.Popen(
-					ud.instance.callam['ringtone-exec'])
+					ud.instance.callam['ringtone-exec'],
+					start_new_session = True)
 			except Exception as e:
 				sys.stderr.write(e + os.linesep)
 
@@ -390,7 +392,10 @@ class Application:
 			env['MMFWD_CALLAM_PLAYBACK'] = str(ud.instance.callam['playback'])
 
 			exec = [ ud.instance.callam['exec'], "/dev/" + ud.audio_port, path ]
-			ud.instance.callam_proc = subprocess.Popen(exec, env = env)
+			ud.instance.callam_proc = subprocess.Popen(
+				exec,
+				env = env,
+				start_new_session = True)
 			# 5 minutes timeout
 			ud.instance.callam_timer = GLib.timeout_add_seconds(
 				60 * 4,

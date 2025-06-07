@@ -125,10 +125,12 @@ bool open_playback (void) {
 	pid_t pid[2] = { -1, -1 };
 	int fd_in[2] = { -1, -1 };
 	int fd_out[2] = { -1, -1 };
-	int blackhole;
+	int blackhole = -1;
+	int saved_errno = errno;
 
 	fr = pipe(p);
 	if (fr < 0) {
+		saved_errno = errno;
 		perror(ARGV0 ": pipe()");
 		goto ERR;
 	}
@@ -142,6 +144,7 @@ bool open_playback (void) {
 
 		fr = pipe(p);
 		if (fr < 0) {
+			saved_errno = errno;
 			perror(ARGV0 ": pipe()");
 			goto ERR;
 		}
@@ -150,6 +153,7 @@ bool open_playback (void) {
 
 		pid[i] = do_playback_exec(p[0], blackhole);
 		if (pid[i] < 0) {
+			saved_errno = errno;
 			goto ERR;
 		}
 
@@ -166,13 +170,17 @@ bool open_playback (void) {
 		assert(fr == 0);
 	}
 
+	close(blackhole);
 	return true;
 ERR: // house-keeping
+	close(blackhole);
 	for (size_t i = 0; i < 2; i += 1) {
 		close(fd_in[i]);
 		close(fd_out[i]);
-		kill(pid[i], SIGHUP);
+		kill(pid[i], SIGKILL);
 	}
+
+	errno = saved_errno;
 	return false;
 }
 
